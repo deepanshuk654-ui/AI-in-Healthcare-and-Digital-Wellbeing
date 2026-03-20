@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}AI Chatbot{% endblock %}
+{% block topbar_title %}
+  <span><i class="bi bi-chat-dots-fill me-2 text-primary"></i>AI Health Chatbot</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <h2 class="page-title">AI Health Assistant</h2>
+    <p class="page-subtitle">Ask me anything about your health, wellbeing, and lifestyle</p>
+  </div>
+  <button class="btn btn-outline-danger btn-sm" onclick="clearChat()" data-testid="button-clear-chat">
+    <i class="bi bi-trash me-2"></i>Clear Chat
+  </button>
+</div>
+
+<div class="chat-layout">
+  <!-- Suggestions panel -->
+  <div class="chat-suggestions">
+    <div class="metric-card h-100">
+      <div class="card-header-custom mb-3">
+        <div class="card-icon-sm" style="background:rgba(99,102,241,0.15)"><i class="bi bi-lightbulb-fill" style="color:#6366f1"></i></div>
+        <div>
+          <h6 class="card-title-custom mb-0">Quick Topics</h6>
+        </div>
+      </div>
+      <div class="suggestions-list">
+        {% set topics = [
+          ("How can I improve my sleep?", "bi-moon-stars"),
+          ("Tips to reduce stress", "bi-heart"),
+          ("Best exercises for beginners", "bi-activity"),
+          ("How much water should I drink?", "bi-droplet"),
+          ("How to reduce screen time?", "bi-display"),
+          ("Healthy diet tips", "bi-egg-fried"),
+          ("How is my score calculated?", "bi-graph-up"),
+          ("Meditation for beginners", "bi-peace"),
+        ] %}
+        {% for topic, icon in topics %}
+        <button class="suggestion-chip" onclick="useSuggestion('{{ topic }}')" data-testid="suggestion-{{ loop.index }}">
+          <i class="bi {{ icon }} me-2"></i>{{ topic }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat window -->
+  <div class="chat-main">
+    <div class="metric-card chat-window-card h-100 d-flex flex-column">
+      <!-- Messages area -->
+      <div class="chat-messages" id="chatMessages">
+        <!-- Welcome message -->
+        <div class="chat-bubble bot-bubble welcome-bubble">
+          <div class="bubble-avatar bot-avatar"><i class="bi bi-robot"></i></div>
+          <div class="bubble-content">
+            <div class="bubble-name">AI Assistant</div>
+            <div class="bubble-text">
+              Hello! I'm your AI Health & Wellbeing Assistant. I can help you with:
+              <ul class="mt-2 mb-0">
+                <li>Sleep optimization & insomnia tips</li>
+                <li>Stress management techniques</li>
+                <li>Exercise and fitness guidance</li>
+                <li>Nutrition and hydration advice</li>
+                <li>Digital wellness strategies</li>
+              </ul>
+              What would you like to know?
+            </div>
+          </div>
+        </div>
+
+        <!-- Previous messages from DB -->
+        {% for msg in messages %}
+        {% if msg.role == 'user' %}
+        <div class="chat-bubble user-bubble">
+          <div class="bubble-content user-content">
+            <div class="bubble-name user-name">You</div>
+            <div class="bubble-text">{{ msg.content }}</div>
+          </div>
+          <div class="bubble-avatar user-avatar">
+            {{ session.user_name[0].upper() }}
+          </div>
+        </div>
+        {% else %}
+        <div class="chat-bubble bot-bubble">
+          <div class="bubble-avatar bot-avatar"><i class="bi bi-robot"></i></div>
+          <div class="bubble-content">
+            <div class="bubble-name">AI Assistant</div>
+            <div class="bubble-text">{{ msg.content }}</div>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+      </div>
+
+      <!-- Typing indicator -->
+      <div class="typing-indicator d-none" id="typingIndicator">
+        <div class="bubble-avatar bot-avatar"><i class="bi bi-robot"></i></div>
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <!-- Input area -->
+      <div class="chat-input-area">
+        <div class="chat-input-wrapper">
+          <textarea
+            id="chatInput"
+            class="chat-input"
+            placeholder="Ask me about sleep, stress, exercise, nutrition..."
+            rows="1"
+            data-testid="input-chat-message"
+            onkeydown="handleKey(event)"
+            oninput="autoResize(this)"
+          ></textarea>
+          <button class="chat-send-btn" onclick="sendMessage()" data-testid="button-send-message" id="sendBtn">
+            <i class="bi bi-send-fill"></i>
+          </button>
+        </div>
+        <div class="chat-hint">Press Enter to send, Shift+Enter for new line</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const userInitial = "{{ session.user_name[0].upper() }}";
+const messagesEl = document.getElementById('chatMessages');
+
+function scrollToBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+scrollToBottom();
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function useSuggestion(text) {
+  const input = document.getElementById('chatInput');
+  input.value = text;
+  autoResize(input);
+  input.focus();
+}
+
+function addBubble(role, text) {
+  const div = document.createElement('div');
+  div.className = `chat-bubble ${role === 'user' ? 'user-bubble' : 'bot-bubble'}`;
+  if (role === 'user') {
+    div.innerHTML = `
+      <div class="bubble-content user-content">
+        <div class="bubble-name user-name">You</div>
+        <div class="bubble-text">${escapeHtml(text)}</div>
+      </div>
+      <div class="bubble-avatar user-avatar">${userInitial}</div>
+    `;
+  } else {
+    div.innerHTML = `
+      <div class="bubble-avatar bot-avatar"><i class="bi bi-robot"></i></div>
+      <div class="bubble-content">
+        <div class="bubble-name">AI Assistant</div>
+        <div class="bubble-text">${escapeHtml(text)}</div>
+      </div>
+    `;
+  }
+  messagesEl.appendChild(div);
+  scrollToBottom();
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const message = input.value.trim();
+  if (!message) return;
+
+  const sendBtn = document.getElementById('sendBtn');
+  sendBtn.disabled = true;
+  input.disabled = true;
+
+  addBubble('user', message);
+  input.value = '';
+  input.style.height = 'auto';
+
+  const typing = document.getElementById('typingIndicator');
+  typing.classList.remove('d-none');
+  scrollToBottom();
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    const data = await res.json();
+    typing.classList.add('d-none');
+    if (data.response) {
+      addBubble('bot', data.response);
+    }
+  } catch (e) {
+    typing.classList.add('d-none');
+    addBubble('bot', 'Sorry, I encountered an error. Please try again.');
+  } finally {
+    sendBtn.disabled = false;
+    input.disabled = false;
+    input.focus();
+  }
+}
+
+async function clearChat() {
+  if (!confirm('Clear all chat history?')) return;
+  await fetch('/api/chat/clear', { method: 'POST' });
+  const bubbles = messagesEl.querySelectorAll('.chat-bubble:not(.welcome-bubble)');
+  bubbles.forEach(b => b.remove());
+}
+</script>
+{% endblock %}

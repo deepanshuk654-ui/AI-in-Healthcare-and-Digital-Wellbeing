@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}History{% endblock %}
+{% block topbar_title %}
+  <span><i class="bi bi-clock-history me-2 text-primary"></i>Health History</span>
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <h2 class="page-title">Health Records</h2>
+    <p class="page-subtitle">Review your past health data and track your progress</p>
+  </div>
+  <a href="{{ url_for('analytics') }}" class="btn btn-outline-primary">
+    <i class="bi bi-bar-chart me-2"></i>View Analytics
+  </a>
+</div>
+
+{% if records %}
+<div class="metric-card mb-4">
+  <div class="table-responsive">
+    <table class="table table-dark table-hover align-middle mb-0" data-testid="table-health-history">
+      <thead>
+        <tr>
+          <th><i class="bi bi-calendar3 me-2"></i>Date</th>
+          <th><i class="bi bi-moon-stars me-2"></i>Sleep</th>
+          <th><i class="bi bi-display me-2"></i>Screen</th>
+          <th><i class="bi bi-emoji-smile me-2"></i>Mood</th>
+          <th><i class="bi bi-activity me-2"></i>Exercise</th>
+          <th><i class="bi bi-droplet me-2"></i>Water</th>
+          <th><i class="bi bi-briefcase me-2"></i>Work</th>
+          <th><i class="bi bi-graph-up me-2"></i>Score</th>
+          <th><i class="bi bi-shield me-2"></i>Risk</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr data-testid="row-history-{{ r.id }}">
+          <td>
+            <span class="date-badge">
+              {{ r.date }}
+            </span>
+          </td>
+          <td>
+            <span class="metric-pill {% if r.sleep_hours >= 7 %}pill-good{% elif r.sleep_hours >= 6 %}pill-warn{% else %}pill-bad{% endif %}">
+              {{ r.sleep_hours }}h
+            </span>
+          </td>
+          <td>
+            <span class="metric-pill {% if r.screen_time <= 4 %}pill-good{% elif r.screen_time <= 6 %}pill-warn{% else %}pill-bad{% endif %}">
+              {{ r.screen_time }}h
+            </span>
+          </td>
+          <td>
+            <span class="mood-tag mood-{{ r.mood }}">
+              {% if r.mood == 'happy' %}<i class="bi bi-emoji-smile-fill me-1"></i>
+              {% elif r.mood == 'neutral' %}<i class="bi bi-emoji-neutral-fill me-1"></i>
+              {% else %}<i class="bi bi-emoji-frown-fill me-1"></i>{% endif %}
+              {{ r.mood | capitalize }}
+            </span>
+          </td>
+          <td>
+            <span class="metric-pill {% if r.exercise_minutes >= 30 %}pill-good{% elif r.exercise_minutes >= 15 %}pill-warn{% else %}pill-bad{% endif %}">
+              {{ r.exercise_minutes }}m
+            </span>
+          </td>
+          <td>
+            <span class="metric-pill {% if r.water_intake >= 2.5 %}pill-good{% elif r.water_intake >= 2.0 %}pill-warn{% else %}pill-bad{% endif %}">
+              {{ r.water_intake }}L
+            </span>
+          </td>
+          <td>
+            <span class="metric-pill {% if r.work_hours <= 8 %}pill-good{% elif r.work_hours <= 10 %}pill-warn{% else %}pill-bad{% endif %}">
+              {{ r.work_hours }}h
+            </span>
+          </td>
+          <td>
+            <div class="score-pill-wrapper">
+              <span class="score-pill {% if r.score >= 70 %}score-high{% elif r.score >= 45 %}score-mid{% else %}score-low{% endif %}">
+                {{ r.score }}
+              </span>
+              <div class="score-progress-bar">
+                <div class="score-fill {% if r.score >= 70 %}fill-high{% elif r.score >= 45 %}fill-mid{% else %}fill-low{% endif %}" style="width:{{ r.score }}%"></div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="risk-badge risk-{{ r.risk_level.lower() }}">{{ r.risk_level }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Summary stats -->
+<div class="row g-3">
+  <div class="col-md-3">
+    <div class="metric-card text-center p-3">
+      <div class="text-muted small mb-1">Total Entries</div>
+      <div class="h3 fw-bold text-primary">{{ records | length }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-card text-center p-3">
+      <div class="text-muted small mb-1">Avg Health Score</div>
+      <div class="h3 fw-bold" style="color:#10b981">
+        {{ (records | sum(attribute='score') / records | length) | round | int }}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-card text-center p-3">
+      <div class="text-muted small mb-1">Avg Sleep</div>
+      <div class="h3 fw-bold" style="color:#6366f1">
+        {{ ((records | sum(attribute='sleep_hours')) / records | length) | round(1) }}h
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-card text-center p-3">
+      <div class="text-muted small mb-1">Avg Exercise</div>
+      <div class="h3 fw-bold" style="color:#f59e0b">
+        {{ ((records | sum(attribute='exercise_minutes')) / records | length) | round | int }}m
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+<div class="metric-card text-center py-5">
+  <i class="bi bi-clipboard-heart" style="font-size:4rem; color: var(--text-muted)"></i>
+  <h4 class="mt-4" style="color: var(--text-secondary)">No health records yet</h4>
+  <p style="color: var(--text-muted)">Start tracking your health to see your history here</p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-primary mt-3">
+    <i class="bi bi-plus-lg me-2"></i>Log Health Data
+  </a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,508 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block topbar_title %}
+  <span><i class="bi bi-grid-fill me-2 text-primary"></i>Dashboard</span>
+{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <h2 class="page-title">Health Overview</h2>
+    <p class="page-subtitle">Track your daily wellbeing metrics and get AI-powered insights</p>
+  </div>
+  <button class="btn btn-primary btn-glow" data-bs-toggle="modal" data-bs-target="#logHealthModal" data-testid="button-log-health">
+    <i class="bi bi-plus-lg me-2"></i>Log Today's Data
+  </button>
+</div>
+
+<!-- Health Score + Key Metrics Row -->
+<div class="row g-4 mb-4">
+  <!-- Health Score Card -->
+  <div class="col-lg-4">
+    <div class="metric-card score-card h-100">
+      {% if latest_score %}
+      <div class="score-header">
+        <div>
+          <span class="metric-label">AI Health Score</span>
+          <div class="score-date">{{ latest_score.date }}</div>
+        </div>
+        <span class="risk-badge risk-{{ latest_score.risk_level.lower() }}">
+          {{ latest_score.risk_level }} Risk
+        </span>
+      </div>
+      <div class="score-gauge-wrapper">
+        <canvas id="scoreGauge" width="200" height="200"></canvas>
+        <div class="score-center">
+          <span class="score-number" id="scoreNumber">{{ latest_score.score }}</span>
+          <span class="score-label-sm">out of 100</span>
+        </div>
+      </div>
+      <div class="score-breakdown">
+        {% set breakdown = latest_score.breakdown %}
+        <div class="breakdown-item">
+          <span>Sleep</span><div class="breakdown-bar"><div class="breakdown-fill" style="width:{{ breakdown.sleep }}%"></div></div><span>{{ breakdown.sleep }}%</span>
+        </div>
+        <div class="breakdown-item">
+          <span>Screen</span><div class="breakdown-bar"><div class="breakdown-fill" style="width:{{ breakdown.screen_time }}%"></div></div><span>{{ breakdown.screen_time }}%</span>
+        </div>
+        <div class="breakdown-item">
+          <span>Exercise</span><div class="breakdown-bar"><div class="breakdown-fill" style="width:{{ breakdown.exercise }}%"></div></div><span>{{ breakdown.exercise }}%</span>
+        </div>
+        <div class="breakdown-item">
+          <span>Hydration</span><div class="breakdown-bar"><div class="breakdown-fill" style="width:{{ breakdown.hydration }}%"></div></div><span>{{ breakdown.hydration }}%</span>
+        </div>
+      </div>
+      {% else %}
+      <div class="score-empty">
+        <div class="score-empty-icon"><i class="bi bi-clipboard-heart"></i></div>
+        <p>No health data yet</p>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#logHealthModal">Log your first entry</button>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Metrics Grid -->
+  <div class="col-lg-8">
+    {% if records %}
+    {% set r = records[0] %}
+    <div class="row g-3">
+      <div class="col-sm-6 col-md-4">
+        <div class="metric-card mini-card" style="--accent: #6366f1">
+          <div class="mini-icon" style="background: rgba(99,102,241,0.15)"><i class="bi bi-moon-stars-fill" style="color:#6366f1"></i></div>
+          <div class="mini-value">{{ r.sleep_hours }}h</div>
+          <div class="mini-label">Sleep Duration</div>
+          <div class="mini-target {% if r.sleep_hours >= 7 %}good{% elif r.sleep_hours >= 6 %}warn{% else %}bad{% endif %}">
+            Target: 7-9h
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-4">
+        <div class="metric-card mini-card" style="--accent: #f59e0b">
+          <div class="mini-icon" style="background: rgba(245,158,11,0.15)"><i class="bi bi-display" style="color:#f59e0b"></i></div>
+          <div class="mini-value">{{ r.screen_time }}h</div>
+          <div class="mini-label">Screen Time</div>
+          <div class="mini-target {% if r.screen_time <= 4 %}good{% elif r.screen_time <= 6 %}warn{% else %}bad{% endif %}">
+            Target: &lt;4h
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-4">
+        <div class="metric-card mini-card" style="--accent: #10b981">
+          <div class="mini-icon" style="background: rgba(16,185,129,0.15)"><i class="bi bi-activity" style="color:#10b981"></i></div>
+          <div class="mini-value">{{ r.exercise_minutes }}m</div>
+          <div class="mini-label">Exercise</div>
+          <div class="mini-target {% if r.exercise_minutes >= 30 %}good{% elif r.exercise_minutes >= 15 %}warn{% else %}bad{% endif %}">
+            Target: 30m+
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-4">
+        <div class="metric-card mini-card" style="--accent: #06b6d4">
+          <div class="mini-icon" style="background: rgba(6,182,212,0.15)"><i class="bi bi-droplet-fill" style="color:#06b6d4"></i></div>
+          <div class="mini-value">{{ r.water_intake }}L</div>
+          <div class="mini-label">Water Intake</div>
+          <div class="mini-target {% if r.water_intake >= 2.5 %}good{% elif r.water_intake >= 2.0 %}warn{% else %}bad{% endif %}">
+            Target: 2.5L+
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-4">
+        <div class="metric-card mini-card" style="--accent: #ec4899">
+          <div class="mini-icon" style="background: rgba(236,72,153,0.15)">
+            {% if r.mood == 'happy' %}<i class="bi bi-emoji-smile-fill" style="color:#ec4899"></i>
+            {% elif r.mood == 'neutral' %}<i class="bi bi-emoji-neutral-fill" style="color:#ec4899"></i>
+            {% else %}<i class="bi bi-emoji-frown-fill" style="color:#ec4899"></i>{% endif %}
+          </div>
+          <div class="mini-value" style="text-transform:capitalize">{{ r.mood }}</div>
+          <div class="mini-label">Today's Mood</div>
+          <div class="mini-target {% if r.mood == 'happy' %}good{% elif r.mood == 'neutral' %}warn{% else %}bad{% endif %}">
+            Target: Happy
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-4">
+        <div class="metric-card mini-card" style="--accent: #8b5cf6">
+          <div class="mini-icon" style="background: rgba(139,92,246,0.15)"><i class="bi bi-briefcase-fill" style="color:#8b5cf6"></i></div>
+          <div class="mini-value">{{ r.work_hours }}h</div>
+          <div class="mini-label">Work Hours</div>
+          <div class="mini-target {% if r.work_hours <= 8 %}good{% elif r.work_hours <= 10 %}warn{% else %}bad{% endif %}">
+            Target: &lt;8h
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="metric-card h-100 d-flex align-items-center justify-content-center">
+      <div class="text-center py-4">
+        <i class="bi bi-bar-chart-line" style="font-size:3rem; color: var(--text-muted)"></i>
+        <p class="mt-3" style="color: var(--text-muted)">Log your first health entry to see metrics here</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- AI Recommendations + Trend Chart -->
+<div class="row g-4 mb-4">
+  {% if latest_score and latest_score.recommendations %}
+  <div class="col-lg-5">
+    <div class="metric-card h-100">
+      <div class="card-header-custom">
+        <div class="card-icon-sm" style="background:rgba(99,102,241,0.15)">
+          <i class="bi bi-lightning-fill" style="color:#6366f1"></i>
+        </div>
+        <div>
+          <h5 class="card-title-custom">AI Recommendations</h5>
+          <span class="card-subtitle-custom">Personalized insights for you</span>
+        </div>
+      </div>
+      <div class="recommendations-list">
+        {% for rec in latest_score.recommendations %}
+        <div class="rec-item">
+          <div class="rec-icon"><i class="bi bi-arrow-right-circle-fill"></i></div>
+          <p class="rec-text">{{ rec }}</p>
+        </div>
+        {% endfor %}
+      </div>
+      <a href="{{ url_for('chatbot') }}" class="btn btn-outline-primary btn-sm mt-3 w-100">
+        <i class="bi bi-chat-dots me-2"></i>Ask AI Chatbot for More Tips
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="col-lg-{% if latest_score and latest_score.recommendations %}7{% else %}12{% endif %}">
+    <div class="metric-card h-100">
+      <div class="card-header-custom mb-3">
+        <div class="card-icon-sm" style="background:rgba(16,185,129,0.15)">
+          <i class="bi bi-graph-up-arrow" style="color:#10b981"></i>
+        </div>
+        <div>
+          <h5 class="card-title-custom">Health Score Trend</h5>
+          <span class="card-subtitle-custom">Last 7 days</span>
+        </div>
+      </div>
+      <div style="position:relative; height:220px">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Summary Row -->
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="metric-card stat-summary-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg,#6366f1,#8b5cf6)">
+        <i class="bi bi-calendar-check-fill"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{{ total_records }}</span>
+        <span class="stat-label">Total Entries</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="metric-card stat-summary-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg,#10b981,#06b6d4)">
+        <i class="bi bi-trophy-fill"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{% if latest_score %}{{ latest_score.score }}{% else %}—{% endif %}</span>
+        <span class="stat-label">Latest Score</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="metric-card stat-summary-card">
+      <div class="stat-icon" style="background: linear-gradient(135deg,#f59e0b,#ef4444)">
+        <i class="bi bi-shield-fill-check"></i>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">{% if latest_score %}{{ latest_score.risk_level }}{% else %}—{% endif %}</span>
+        <span class="stat-label">Risk Level</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Log Health Modal -->
+<div class="modal fade" id="logHealthModal" tabindex="-1" aria-labelledby="logHealthModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content modal-glass">
+      <div class="modal-header border-0 pb-0">
+        <div class="modal-title-wrapper">
+          <div class="modal-icon"><i class="bi bi-heart-pulse"></i></div>
+          <div>
+            <h5 class="modal-title" id="logHealthModalLabel">Log Health Data</h5>
+            <p class="modal-subtitle">Enter your daily lifestyle metrics</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="formSuccess" class="alert alert-success d-none">
+          <i class="bi bi-check-circle-fill me-2"></i>
+          <span id="formSuccessMsg"></span>
+        </div>
+        <div id="formError" class="alert alert-danger d-none">
+          <i class="bi bi-exclamation-triangle-fill me-2"></i>
+          <span id="formErrorMsg"></span>
+        </div>
+
+        <form id="healthForm">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label modal-label">
+                <i class="bi bi-calendar3 me-1 text-primary"></i> Date
+              </label>
+              <input type="date" id="date" name="date" class="form-control modal-input" required />
+            </div>
+            <div class="col-md-6">
+              <label class="form-label modal-label">
+                <i class="bi bi-moon-stars-fill me-1" style="color:#6366f1"></i> Sleep Hours
+              </label>
+              <div class="slider-wrapper">
+                <input type="range" id="sleep_hours" name="sleep_hours" min="0" max="12" step="0.5" value="7" class="form-range slider-primary" oninput="updateSlider('sleep_hours', this.value, 'h')" />
+                <span class="slider-value" id="sleep_hours_val">7h</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label modal-label">
+                <i class="bi bi-display me-1" style="color:#f59e0b"></i> Screen Time (hours)
+              </label>
+              <div class="slider-wrapper">
+                <input type="range" id="screen_time" name="screen_time" min="0" max="16" step="0.5" value="6" class="form-range slider-amber" oninput="updateSlider('screen_time', this.value, 'h')" />
+                <span class="slider-value" id="screen_time_val">6h</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label modal-label">
+                <i class="bi bi-activity me-1" style="color:#10b981"></i> Exercise (minutes)
+              </label>
+              <div class="slider-wrapper">
+                <input type="range" id="exercise_minutes" name="exercise_minutes" min="0" max="180" step="5" value="30" class="form-range slider-green" oninput="updateSlider('exercise_minutes', this.value, 'm')" />
+                <span class="slider-value" id="exercise_minutes_val">30m</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label modal-label">
+                <i class="bi bi-droplet-fill me-1" style="color:#06b6d4"></i> Water Intake (liters)
+              </label>
+              <div class="slider-wrapper">
+                <input type="range" id="water_intake" name="water_intake" min="0" max="5" step="0.25" value="2" class="form-range slider-cyan" oninput="updateSlider('water_intake', this.value, 'L')" />
+                <span class="slider-value" id="water_intake_val">2L</span>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label modal-label">
+                <i class="bi bi-briefcase-fill me-1" style="color:#8b5cf6"></i> Work Hours
+              </label>
+              <div class="slider-wrapper">
+                <input type="range" id="work_hours" name="work_hours" min="0" max="16" step="0.5" value="8" class="form-range slider-purple" oninput="updateSlider('work_hours', this.value, 'h')" />
+                <span class="slider-value" id="work_hours_val">8h</span>
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label modal-label">
+                <i class="bi bi-emoji-smile me-1" style="color:#ec4899"></i> Today's Mood
+              </label>
+              <div class="mood-selector">
+                <label class="mood-option">
+                  <input type="radio" name="mood" value="happy" checked />
+                  <div class="mood-card">
+                    <i class="bi bi-emoji-smile-fill"></i>
+                    <span>Happy</span>
+                  </div>
+                </label>
+                <label class="mood-option">
+                  <input type="radio" name="mood" value="neutral" />
+                  <div class="mood-card">
+                    <i class="bi bi-emoji-neutral-fill"></i>
+                    <span>Neutral</span>
+                  </div>
+                </label>
+                <label class="mood-option">
+                  <input type="radio" name="mood" value="stressed" />
+                  <div class="mood-card">
+                    <i class="bi bi-emoji-frown-fill"></i>
+                    <span>Stressed</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer border-0 pt-0">
+        <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-glow" onclick="submitHealth()" id="submitBtn" data-testid="button-submit-health">
+          <i class="bi bi-check-lg me-2"></i>Save & Analyze
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const records = {{ records | tojson }};
+const latestScore = {{ (latest_score | tojson) if latest_score else 'null' }};
+
+// Set today's date as default
+document.getElementById('date').value = new Date().toISOString().split('T')[0];
+
+// Slider value updater
+function updateSlider(id, value, unit) {
+  document.getElementById(id + '_val').textContent = value + unit;
+}
+
+// Health Score Gauge
+if (latestScore) {
+  const score = latestScore.score;
+  const color = score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#ef4444';
+  const ctx = document.getElementById('scoreGauge').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      datasets: [{
+        data: [score, 100 - score],
+        backgroundColor: [color, 'rgba(255,255,255,0.05)'],
+        borderWidth: 0,
+        borderRadius: 8,
+        circumference: 270,
+        rotation: 225,
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '75%',
+      plugins: { legend: { display: false }, tooltip: { enabled: false } }
+    }
+  });
+}
+
+// Trend Chart
+const trendCtx = document.getElementById('trendChart');
+if (trendCtx && records.length > 0) {
+  const sorted = [...records].reverse();
+  const labels = sorted.map(r => {
+    const d = new Date(r.date);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  });
+
+  function getScore(r) {
+    let s = 0, sc = 0, ex = 0, h = 0, m = 0, w = 0;
+    const sleep = r.sleep_hours;
+    if (sleep >= 7 && sleep <= 9) s = 100; else if (sleep >= 6) s = 70; else if (sleep >= 5) s = 40; else s = 20;
+    const screen = r.screen_time;
+    if (screen <= 4) sc = 100; else if (screen <= 6) sc = 80; else if (screen <= 8) sc = 55; else if (screen <= 10) sc = 30; else sc = 10;
+    const exercise = r.exercise_minutes;
+    if (exercise >= 60) ex = 100; else if (exercise >= 30) ex = 75; else if (exercise > 0) ex = 40; else ex = 0;
+    const water = r.water_intake;
+    if (water >= 2.5) h = 100; else if (water >= 2.0) h = 85; else if (water >= 1.5) h = 60; else h = 30;
+    m = r.mood === 'happy' ? 100 : r.mood === 'neutral' ? 60 : 20;
+    const work = r.work_hours;
+    if (work <= 6) w = 100; else if (work <= 8) w = 80; else if (work <= 10) w = 50; else w = 20;
+    return Math.round(s*0.25 + sc*0.20 + ex*0.20 + h*0.15 + m*0.10 + w*0.10);
+  }
+
+  const scores = sorted.map(getScore);
+
+  new Chart(trendCtx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Health Score',
+        data: scores,
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,0.12)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#6366f1',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(17,24,39,0.95)',
+          titleColor: '#fff',
+          bodyColor: '#9ca3af',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          padding: 12,
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } },
+        y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } }
+      }
+    }
+  });
+}
+
+async function submitHealth() {
+  const btn = document.getElementById('submitBtn');
+  const successEl = document.getElementById('formSuccess');
+  const errorEl = document.getElementById('formError');
+  successEl.classList.add('d-none');
+  errorEl.classList.add('d-none');
+
+  const data = {
+    date: document.getElementById('date').value,
+    sleep_hours: parseFloat(document.getElementById('sleep_hours').value),
+    screen_time: parseFloat(document.getElementById('screen_time').value),
+    exercise_minutes: parseInt(document.getElementById('exercise_minutes').value),
+    water_intake: parseFloat(document.getElementById('water_intake').value),
+    work_hours: parseFloat(document.getElementById('work_hours').value),
+    mood: document.querySelector('input[name="mood"]:checked').value,
+  };
+
+  if (!data.date) {
+    document.getElementById('formErrorMsg').textContent = 'Please select a date.';
+    errorEl.classList.remove('d-none');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
+
+  try {
+    const res = await fetch('/health/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (result.success) {
+      const score = result.score;
+      document.getElementById('formSuccessMsg').textContent =
+        `Entry saved! Your health score is ${score.score}/100 — ${score.risk_level} risk. Page will refresh in 2 seconds.`;
+      successEl.classList.remove('d-none');
+      setTimeout(() => window.location.reload(), 2000);
+    } else {
+      document.getElementById('formErrorMsg').textContent = result.error || 'Failed to save data.';
+      errorEl.classList.remove('d-none');
+    }
+  } catch (e) {
+    document.getElementById('formErrorMsg').textContent = 'Network error. Please try again.';
+    errorEl.classList.remove('d-none');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-lg me-2"></i>Save & Analyze';
+  }
+}
+</script>
+{% endblock %}

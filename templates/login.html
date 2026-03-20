@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block auth_content %}
+<div class="auth-page">
+  <div class="auth-bg">
+    <div class="auth-blob blob-1"></div>
+    <div class="auth-blob blob-2"></div>
+    <div class="auth-blob blob-3"></div>
+  </div>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">
+          <i class="bi bi-heart-pulse-fill"></i>
+        </div>
+        <h1 class="auth-title">Welcome Back</h1>
+        <p class="auth-subtitle">Sign in to your AI Wellbeing account</p>
+      </div>
+
+      {% if error %}
+      <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+        <i class="bi bi-exclamation-circle-fill"></i>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('login') }}" novalidate>
+        <div class="form-group mb-4">
+          <label class="form-label" for="email">Email Address</label>
+          <div class="input-wrapper">
+            <i class="bi bi-envelope input-icon"></i>
+            <input type="email" id="email" name="email" class="form-control auth-input" placeholder="you@example.com" required autocomplete="email" />
+          </div>
+        </div>
+        <div class="form-group mb-4">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-wrapper">
+            <i class="bi bi-lock input-icon"></i>
+            <input type="password" id="password" name="password" class="form-control auth-input" placeholder="••••••••" required autocomplete="current-password" />
+            <button type="button" class="pw-toggle" onclick="togglePw('password', this)">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary auth-btn w-100">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Don't have an account?
+        <a href="{{ url_for('signup') }}" class="auth-link">Create one free</a>
+      </div>
+
+      <div class="demo-hint">
+        <i class="bi bi-info-circle me-1"></i>
+        Try the app by creating a free account below
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  function togglePw(id, btn) {
+    const input = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'bi bi-eye-slash';
+    } else {
+      input.type = 'password';
+      icon.className = 'bi bi-eye';
+    }
+  }
+</script>
+{% endblock %}

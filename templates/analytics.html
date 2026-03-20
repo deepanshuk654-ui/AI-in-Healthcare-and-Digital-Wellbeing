@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block topbar_title %}
+  <span><i class="bi bi-bar-chart-fill me-2 text-primary"></i>Analytics</span>
+{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+  <div>
+    <h2 class="page-title">Health Analytics</h2>
+    <p class="page-subtitle">Detailed charts and trends from your health data</p>
+  </div>
+  <div class="d-flex gap-2">
+    <select class="form-select form-select-sm" id="daysFilter" onchange="loadData()" data-testid="select-days-filter" style="width:auto;background:var(--card-bg);border-color:var(--border-color);color:inherit">
+      <option value="7">Last 7 days</option>
+      <option value="14" selected>Last 14 days</option>
+      <option value="30">Last 30 days</option>
+    </select>
+  </div>
+</div>
+
+<!-- Loading state -->
+<div id="loadingState" class="text-center py-5">
+  <div class="spinner-border text-primary" role="status"></div>
+  <p class="mt-3" style="color:var(--text-muted)">Loading your analytics data...</p>
+</div>
+
+<!-- No data state -->
+<div id="noDataState" class="metric-card text-center py-5 d-none">
+  <i class="bi bi-bar-chart-line" style="font-size:4rem; color: var(--text-muted)"></i>
+  <h4 class="mt-4" style="color: var(--text-secondary)">No data for this period</h4>
+  <p style="color: var(--text-muted)">Log some health entries to see analytics here</p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-primary mt-3">
+    <i class="bi bi-plus-lg me-2"></i>Log Health Data
+  </a>
+</div>
+
+<!-- Charts -->
+<div id="chartsContainer" class="d-none">
+  <!-- Average Summary Row -->
+  <div class="row g-3 mb-4" id="summaryRow"></div>
+
+  <!-- Charts Grid -->
+  <div class="row g-4">
+    <div class="col-lg-6">
+      <div class="metric-card h-100">
+        <div class="card-header-custom mb-3">
+          <div class="card-icon-sm" style="background:rgba(99,102,241,0.15)"><i class="bi bi-graph-up" style="color:#6366f1"></i></div>
+          <div>
+            <h5 class="card-title-custom">Health Score Trend</h5>
+            <span class="card-subtitle-custom">Daily AI score over time</span>
+          </div>
+        </div>
+        <div style="position:relative;height:220px">
+          <canvas id="scoreChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="metric-card h-100">
+        <div class="card-header-custom mb-3">
+          <div class="card-icon-sm" style="background:rgba(99,102,241,0.15)"><i class="bi bi-moon-stars" style="color:#6366f1"></i></div>
+          <div>
+            <h5 class="card-title-custom">Sleep Duration</h5>
+            <span class="card-subtitle-custom">Hours per night</span>
+          </div>
+        </div>
+        <div style="position:relative;height:220px">
+          <canvas id="sleepChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="metric-card h-100">
+        <div class="card-header-custom mb-3">
+          <div class="card-icon-sm" style="background:rgba(245,158,11,0.15)"><i class="bi bi-display" style="color:#f59e0b"></i></div>
+          <div>
+            <h5 class="card-title-custom">Screen Time</h5>
+            <span class="card-subtitle-custom">Daily hours on devices</span>
+          </div>
+        </div>
+        <div style="position:relative;height:220px">
+          <canvas id="screenChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="metric-card h-100">
+        <div class="card-header-custom mb-3">
+          <div class="card-icon-sm" style="background:rgba(16,185,129,0.15)"><i class="bi bi-activity" style="color:#10b981"></i></div>
+          <div>
+            <h5 class="card-title-custom">Exercise Progress</h5>
+            <span class="card-subtitle-custom">Minutes per day</span>
+          </div>
+        </div>
+        <div style="position:relative;height:220px">
+          <canvas id="exerciseChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="metric-card h-100">
+        <div class="card-header-custom mb-3">
+          <div class="card-icon-sm" style="background:rgba(6,182,212,0.15)"><i class="bi bi-droplet-fill" style="color:#06b6d4"></i></div>
+          <div>
+            <h5 class="card-title-custom">Water Intake</h5>
+            <span class="card-subtitle-custom">Liters per day</span>
+          </div>
+        </div>
+        <div style="position:relative;height:220px">
+          <canvas id="waterChart"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-6">
+      <div class="metric-card h-100">
+        <div class="card-header-custom mb-3">
+          <div class="card-icon-sm" style="background:rgba(236,72,153,0.15)"><i class="bi bi-emoji-smile" style="color:#ec4899"></i></div>
+          <div>
+            <h5 class="card-title-custom">Mood Distribution</h5>
+            <span class="card-subtitle-custom">How you felt over time</span>
+          </div>
+        </div>
+        <div style="position:relative;height:220px">
+          <canvas id="moodChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let charts = {};
+
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      backgroundColor: 'rgba(17,24,39,0.95)',
+      titleColor: '#fff',
+      bodyColor: '#9ca3af',
+      borderColor: 'rgba(255,255,255,0.1)',
+      borderWidth: 1,
+      padding: 12,
+    }
+  },
+  scales: {
+    x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280', maxTicksLimit: 8 } },
+    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#6b7280' } }
+  }
+};
+
+function makeLineChart(id, labels, data, color, label, yMin, yMax) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label,
+        data,
+        borderColor: color,
+        backgroundColor: color.replace(')', ',0.1)').replace('rgb', 'rgba'),
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: color,
+        pointRadius: 4,
+        pointHoverRadius: 7,
+      }]
+    },
+    options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } },
+      scales: { ...chartDefaults.scales,
+        y: { ...chartDefaults.scales.y, min: yMin ?? undefined, max: yMax ?? undefined }
+      }
+    }
+  });
+}
+
+function makeBarChart(id, labels, data, color, label) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label,
+        data,
+        backgroundColor: color.replace(')', ',0.7)').replace('rgb', 'rgba'),
+        borderColor: color,
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: chartDefaults
+  });
+}
+
+async function loadData() {
+  const days = document.getElementById('daysFilter').value;
+  document.getElementById('loadingState').classList.remove('d-none');
+  document.getElementById('chartsContainer').classList.add('d-none');
+  document.getElementById('noDataState').classList.add('d-none');
+
+  try {
+    const res = await fetch(`/api/analytics/data?days=${days}`);
+    const records = await res.json();
+
+    document.getElementById('loadingState').classList.add('d-none');
+
+    if (!records.length) {
+      document.getElementById('noDataState').classList.remove('d-none');
+      return;
+    }
+
+    document.getElementById('chartsContainer').classList.remove('d-none');
+
+    const labels = records.map(r => {
+      const d = new Date(r.date);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    });
+
+    // Summary cards
+    const avgSleep = (records.reduce((s, r) => s + r.sleep_hours, 0) / records.length).toFixed(1);
+    const avgScreen = (records.reduce((s, r) => s + r.screen_time, 0) / records.length).toFixed(1);
+    const avgExercise = Math.round(records.reduce((s, r) => s + r.exercise_minutes, 0) / records.length);
+    const avgScore = Math.round(records.reduce((s, r) => s + r.score, 0) / records.length);
+    const moods = records.map(r => r.mood);
+    const happy = moods.filter(m => m === 'happy').length;
+    const neutral = moods.filter(m => m === 'neutral').length;
+    const stressed = moods.filter(m => m === 'stressed').length;
+    const dominantMood = happy >= neutral && happy >= stressed ? 'Happy' : neutral >= stressed ? 'Neutral' : 'Stressed';
+
+    document.getElementById('summaryRow').innerHTML = `
+      <div class="col-6 col-md-3">
+        <div class="metric-card text-center p-3">
+          <div class="text-muted small">Avg Score</div>
+          <div class="h2 fw-bold" style="color:#6366f1">${avgScore}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="metric-card text-center p-3">
+          <div class="text-muted small">Avg Sleep</div>
+          <div class="h2 fw-bold" style="color:#6366f1">${avgSleep}h</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="metric-card text-center p-3">
+          <div class="text-muted small">Avg Exercise</div>
+          <div class="h2 fw-bold" style="color:#10b981">${avgExercise}m</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="metric-card text-center p-3">
+          <div class="text-muted small">Common Mood</div>
+          <div class="h2 fw-bold" style="color:#ec4899">${dominantMood}</div>
+        </div>
+      </div>
+    `;
+
+    // Render charts
+    makeLineChart('scoreChart', labels, records.map(r => r.score), 'rgb(99,102,241)', 'Health Score', 0, 100);
+    makeLineChart('sleepChart', labels, records.map(r => r.sleep_hours), 'rgb(99,102,241)', 'Sleep (h)');
+    makeLineChart('screenChart', labels, records.map(r => r.screen_time), 'rgb(245,158,11)', 'Screen (h)');
+    makeBarChart('exerciseChart', labels, records.map(r => r.exercise_minutes), 'rgb(16,185,129)', 'Exercise (min)');
+    makeBarChart('waterChart', labels, records.map(r => r.water_intake), 'rgb(6,182,212)', 'Water (L)');
+
+    // Mood pie chart
+    const moodCtx = document.getElementById('moodChart');
+    if (charts['moodChart']) charts['moodChart'].destroy();
+    charts['moodChart'] = new Chart(moodCtx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Happy', 'Neutral', 'Stressed'],
+        datasets: [{
+          data: [happy, neutral, stressed],
+          backgroundColor: ['rgba(16,185,129,0.8)', 'rgba(245,158,11,0.8)', 'rgba(239,68,68,0.8)'],
+          borderColor: ['rgb(16,185,129)', 'rgb(245,158,11)', 'rgb(239,68,68)'],
+          borderWidth: 2,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+          legend: {
+            display: true,
+            position: 'right',
+            labels: { color: '#9ca3af', padding: 16, font: { size: 12 } }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(17,24,39,0.95)',
+            titleColor: '#fff',
+            bodyColor: '#9ca3af',
+            borderColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            padding: 12,
+          }
+        }
+      }
+    });
+
+  } catch (e) {
+    document.getElementById('loadingState').classList.add('d-none');
+    document.getElementById('noDataState').classList.remove('d-none');
+  }
+}
+
+loadData();
+</script>
+{% endblock %}
