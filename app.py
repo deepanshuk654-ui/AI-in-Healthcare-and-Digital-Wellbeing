@@ -493,6 +493,89 @@ def api_chat_clear():
     db.commit()
     return jsonify({"success": True})
 
+    # ======================================
+# AI CAMERA STRESS DETECTION PAGE
+# ======================================
+
+@app.route("/stress-detection")
+@login_required
+def stress_detection():
+    return render_template("stress.html")
+
+
+# ======================================
+# AI SYMPTOM DISEASE DETECTION
+# ======================================
+
+def detect_disease(symptoms):
+
+    symptoms = [s.lower() for s in symptoms]
+
+    score = {
+        "Flu": 0,
+        "Common Cold": 0,
+        "Migraine": 0
+    }
+
+    # Flu symptoms
+    if "fever" in symptoms:
+        score["Flu"] += 2
+    if "cough" in symptoms:
+        score["Flu"] += 1
+    if "fatigue" in symptoms:
+        score["Flu"] += 1
+
+    # Cold symptoms
+    if "cough" in symptoms:
+        score["Common Cold"] += 1
+    if "sore throat" in symptoms:
+        score["Common Cold"] += 2
+
+    # Migraine symptoms
+    if "headache" in symptoms:
+        score["Migraine"] += 2
+    if "nausea" in symptoms:
+        score["Migraine"] += 1
+
+    disease = max(score, key=score.get)
+
+    if score[disease] == 0:
+        return {
+            "disease": "Unknown",
+            "advice": "Symptoms unclear. Please consult a doctor."
+        }
+
+    advice = {
+        "Flu": "Rest, drink fluids and monitor your temperature.",
+        "Common Cold": "Warm fluids and rest recommended.",
+        "Migraine": "Rest in a dark quiet room."
+    }
+
+    return {
+        "disease": disease,
+        "advice": advice[disease]
+    }
+
+
+@app.route("/symptom-checker")
+@login_required
+def symptom_checker():
+    return render_template("symptom.html")
+
+
+@app.route("/api/detect-disease", methods=["POST"])
+@login_required
+def api_detect_disease():
+
+    data = request.get_json()
+
+    symptoms = data.get("symptoms", [])
+
+    result = detect_disease(symptoms)
+
+    return jsonify(result)
+
+
 
 if __name__ == "__main__":
     init_db()

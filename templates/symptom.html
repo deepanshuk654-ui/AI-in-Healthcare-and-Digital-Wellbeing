@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Symptom Checker{% endblock %}
+
+{% block content %}
+
+<h2>Disease Symptom Checker</h2>
+
+<p>Select symptoms:</p>
+
+<label><input type="checkbox" value="fever"> Fever</label><br>
+<label><input type="checkbox" value="cough"> Cough</label><br>
+<label><input type="checkbox" value="fatigue"> Fatigue</label><br>
+<label><input type="checkbox" value="headache"> Headache</label><br>
+<label><input type="checkbox" value="nausea"> Nausea</label><br>
+<label><input type="checkbox" value="sore throat"> Sore Throat</label><br>
+
+<br><br>
+
+<button class="btn btn-primary" onclick="checkDisease()">Analyze Symptoms</button>
+
+<h4 id="result" class="mt-3"></h4>
+
+<script>
+
+async function checkDisease(){
+
+const symptoms=[];
+
+document.querySelectorAll("input[type=checkbox]:checked")
+.forEach(el=>symptoms.push(el.value));
+
+const res=await fetch("/api/detect-disease",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({symptoms})
+});
+
+const data=await res.json();
+
+document.getElementById("result").innerHTML=
+"<b>Possible Disease:</b> "+data.disease+
+"<br><b>Advice:</b> "+data.advice;
+
+}
+
+</script>
+
+{% endblock %}

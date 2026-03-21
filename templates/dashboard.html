@@ -13,6 +13,16 @@
   <div>
     <h2 class="page-title">Health Overview</h2>
     <p class="page-subtitle">Track your daily wellbeing metrics and get AI-powered insights</p>
+    <div class="mt-3">
+  <a href="{{ url_for('stress_detection') }}" class="btn btn-outline-danger me-2">
+    <i class="bi bi-camera-video"></i> AI Stress Detection
+  </a>
+
+  <a href="{{ url_for('symptom_checker') }}" class="btn btn-outline-success">
+    <i class="bi bi-capsule"></i> Disease Symptom Checker
+  </a>
+</div>
+
   </div>
   <button class="btn btn-primary btn-glow" data-bs-toggle="modal" data-bs-target="#logHealthModal" data-testid="button-log-health">
     <i class="bi bi-plus-lg me-2"></i>Log Today's Data

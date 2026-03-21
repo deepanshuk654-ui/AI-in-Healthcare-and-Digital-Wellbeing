@@ -53,6 +53,17 @@
         <i class="bi bi-chat-dots-fill"></i>
         <span>AI Chatbot</span>
       </a>
+      <a href="{{ url_for('stress_detection') }}" class="nav-item {% if request.endpoint == 'stress_detection' %}active{% endif %}">
+  <i class="bi bi-camera-video-fill"></i>
+  <span>Stress Detection</span>
+      </a>
+
+      <a href="{{ url_for('symptom_checker') }}" class="nav-item {% if request.endpoint == 'symptom_checker' %}active{% endif %}">
+  <i class="bi bi-capsule-pill"></i>
+  <span>Symptom Checker</span>
+      </a>
+
+
     </nav>
 
     <div class="sidebar-footer">
