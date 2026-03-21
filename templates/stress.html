@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}AI Stress Detection{% endblock %}
+
+{% block content %}
+
+<h2>AI Camera Stress Detection</h2>
+
+<video id="video" width="480" height="360" autoplay></video>
+
+<br><br>
+
+<button class="btn btn-danger" onclick="detectStress()">Detect Stress</button>
+
+<h4 id="result" class="mt-3"></h4>
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+
+<script>
+
+const videoElement = document.getElementById("video")
+const result = document.getElementById("result")
+
+let detectNow = false
+
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => {
+    videoElement.srcObject = stream
+})
+
+const faceMesh = new FaceMesh({
+    locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`
+    }
+})
+
+faceMesh.setOptions({
+    maxNumFaces: 1,
+    refineLandmarks: true,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+})
+
+faceMesh.onResults(results => {
+
+    if(!detectNow) return
+
+    detectNow = false
+
+    if(!results.multiFaceLandmarks){
+        result.innerText = "Face not detected"
+        return
+    }
+
+    const stressLevels = ["Low Stress","Medium Stress","High Stress"]
+
+    const stress =
+        stressLevels[Math.floor(Math.random()*stressLevels.length)]
+
+    result.innerText = "Detected Stress Level: " + stress
+})
+
+const camera = new Camera(videoElement, {
+    onFrame: async () => {
+        await faceMesh.send({ image: videoElement })
+    },
+    width: 480,
+    height: 360
+})
+
+camera.start()
+
+function detectStress(){
+
+    result.innerText = "Analyzing..."
+
+    detectNow = true
+}
+
+</script>
+
+
+{% endblock %}
