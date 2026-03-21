@@ -39,7 +39,9 @@ const data=await res.json();
 
 document.getElementById("result").innerHTML=
 "<b>Possible Disease:</b> "+data.disease+
-"<br><b>Advice:</b> "+data.advice;
+"<br><b>Confidence:</b> "+data.confidence+"%"+
+"<br><b>Advice:</b> "+data.advice+
+"<br><br><small style='color:red'>⚠ This is not a medical diagnosis. Please consult a doctor.</small>";
 
 }
 

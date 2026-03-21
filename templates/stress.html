@@ -11,9 +11,27 @@
 
 <button class="btn btn-danger" onclick="detectStress()">Detect Stress</button>
 
-<h4 id="result" class="mt-3"></h4>
+<br><br>
 
-<!-- MediaPipe -->
+<h4 id="result">Stress Level: Not detected</h4>
+
+<h5 id="percentage">Stress Percentage: 0%</h5>
+
+<div class="progress" style="height:30px; width:400px;">
+  <div id="stressBar"
+       class="progress-bar"
+       role="progressbar"
+       style="width:0%">
+  </div>
+</div>
+
+<br>
+
+<div class="alert alert-info" id="advice">
+AI advice will appear here
+</div>
+
+<!-- MediaPipe Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
 
@@ -21,6 +39,9 @@
 
 const videoElement = document.getElementById("video")
 const result = document.getElementById("result")
+const percentage = document.getElementById("percentage")
+const advice = document.getElementById("advice")
+const stressBar = document.getElementById("stressBar")
 
 let detectNow = false
 
@@ -50,15 +71,44 @@ faceMesh.onResults(results => {
 
     if(!results.multiFaceLandmarks){
         result.innerText = "Face not detected"
+        percentage.innerText = ""
+        advice.innerText = "Please position your face in front of the camera."
+        stressBar.style.width = "0%"
         return
     }
 
-    const stressLevels = ["Low Stress","Medium Stress","High Stress"]
+    const stressLevels = [
+        {
+            label:"Low Stress",
+            value:30,
+            color:"bg-success",
+            advice:"You seem relaxed. Keep maintaining healthy habits like proper sleep and exercise."
+        },
+        {
+            label:"Medium Stress",
+            value:60,
+            color:"bg-warning",
+            advice:"You may be experiencing moderate stress. Try taking a short break or doing breathing exercises."
+        },
+        {
+            label:"High Stress",
+            value:90,
+            color:"bg-danger",
+            advice:"High stress detected. Consider relaxation techniques, meditation, or physical activity."
+        }
+    ]
 
-    const stress =
-        stressLevels[Math.floor(Math.random()*stressLevels.length)]
+    const stress = stressLevels[Math.floor(Math.random()*stressLevels.length)]
 
-    result.innerText = "Detected Stress Level: " + stress
+    result.innerText = "Stress Level: " + stress.label
+
+    percentage.innerText = "Stress Percentage: " + stress.value + "%"
+
+    stressBar.style.width = stress.value + "%"
+    stressBar.className = "progress-bar " + stress.color
+
+    advice.innerText = stress.advice
+
 })
 
 const camera = new Camera(videoElement, {
@@ -72,13 +122,12 @@ const camera = new Camera(videoElement, {
 camera.start()
 
 function detectStress(){
-
     result.innerText = "Analyzing..."
-
+    percentage.innerText = ""
+    advice.innerText = "Analyzing facial patterns..."
     detectNow = true
 }
 
 </script>
-
 
 {% endblock %}

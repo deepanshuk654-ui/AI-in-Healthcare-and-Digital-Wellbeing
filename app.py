@@ -553,7 +553,9 @@ def detect_disease(symptoms):
 
     return {
         "disease": disease,
+        "confidence": round(score[disease] / 4 * 100, 2),
         "advice": advice[disease]
+
     }
 
 
