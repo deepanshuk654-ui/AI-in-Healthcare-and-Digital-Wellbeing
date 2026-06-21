@@ -580,5 +580,4 @@ def api_detect_disease():
 
 
 if __name__ == "__main__":
-    app.run()
-app = app
+    app.run(debug=True)
